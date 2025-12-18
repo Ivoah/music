@@ -1,0 +1,68 @@
+body {
+    margin: 0px;
+    width: 100%;
+    font-family: sans-serif;
+    color: white;
+    background-color: #006064;
+
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;  
+}
+
+.textbox {
+    padding: 5px;
+    border-style: solid;
+    border-width: 0px 5px 5px 0px;
+    border-color: #00838F;
+    font-size: 24pt;
+}
+
+.center {
+    position: absolute;
+    bottom: 50%;
+    right: 50%;
+    transform: translateX(50%) translateY(50%);
+}
+
+a {
+    color: inherit;
+}
+
+.artwork {
+    opacity: 100%;
+    transition: opacity 0.25s;
+}
+
+.artwork.hidden {
+    opacity: 0%;
+    transition: opacity 0.25s;
+}
+
+.corner {
+    font-size: 6pt;
+    position: absolute;
+    left: 5px;
+    bottom: 5px;
+}
+
+.bottom {
+    box-sizing: border-box;
+    /* padding: 8px; */
+    width: 100%;
+    position: absolute;
+    bottom: 25%;
+    transform: translateY(50%);
+}
+
+.flexbox {
+    display: flex;
+}
+
+.scrollbox {
+    overflow-x: scroll;
+}
+
+svg#labels {
+    flex-shrink: 0;
+}
