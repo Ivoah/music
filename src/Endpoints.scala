@@ -4,11 +4,8 @@ import net.ivoah.vial.*
 import java.nio.file.Paths
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
-import com.typesafe.config.ConfigFactory
 
-class Endpoints {
-  private val conf = ConfigFactory.load()
-  given Database = Database(conf.getString("db"))
+class Endpoints(spotify: Spotify)(using Database) {
   def router: Router = Router {
     case ("GET" , "/", _) =>
       val song = sql"""
@@ -50,6 +47,10 @@ class Endpoints {
       }
       
       Response(sessions.map(_.toJson).mkString("[\n    ", ",\n    ", "\n]"), headers = Map("Content-Type" -> Seq("application/json")))
+    case ("GET", "/login", _) => Response.Redirect(spotify.redirect)
+    case ("GET", "/callback", request) =>
+      spotify.save_token(request.params("code"))
+      Response.Redirect("/")
     case ("GET", s"/static/$file", _) => Response.forFile(Paths.get("static"), Paths.get(file))
   }
 }

@@ -22,10 +22,12 @@ object Templates {
         img(cls:="center hidden artwork", src:=song.artwork)
       )).getOrElse(frag()),
       div(cls:="center textbox",
+        "Noah is listening to ",
         song match {
-          case Some(song) => frag("Noah is listening to ", b(a(href:=song.link, attr("onmouseenter"):="showArtwork()", attr("onmouseleave"):="hideArtwork()", song.title)), " right now")
-          case None => "Noah is listening to nothing right now"
-        }
+          case Some(song) => b(a(href:=song.link, attr("onmouseenter"):="showArtwork()", attr("onmouseleave"):="hideArtwork()", song.title))
+          case None => "nothing"
+        },
+        " right now"
       ),
       div(cls:="bottom",
         div(cls:="flexbox",

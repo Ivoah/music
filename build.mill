@@ -9,6 +9,8 @@ object `package` extends ScalaModule {
     mvn"com.lihaoyi::scalatags:0.13.1",
     mvn"org.postgresql:postgresql:42.7.8",
     mvn"com.lihaoyi::upickle:4.4.1",
-    mvn"com.typesafe:config:1.4.3"
+    mvn"com.typesafe:config:1.4.3",
+    mvn"com.lihaoyi::requests:0.9.0",
+    mvn"org.playframework::play-json:3.0.6"
   )
 }

@@ -51,6 +51,7 @@ case class Query(parts: Seq[String], params: Seq[QueryParam | RawQuery]) {
     }
   }
 
+  def execute(using db: Database)(): Boolean = Using.resource(statement)(_.execute())
   def update(using db: Database)(): Int = Using.resource(statement)(_.executeUpdate())
 
   def updateGetKey(using db: Database)(): Int = Using.resource(statement) { stmt =>
