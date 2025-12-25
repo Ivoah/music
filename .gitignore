@@ -1,5 +1,6 @@
 .bsp/
 .metals/
 .vscode/
+.idea/
 out/
 resources/application.conf

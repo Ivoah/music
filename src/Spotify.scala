@@ -1,65 +1,47 @@
 package net.ivoah.music
 
-import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*
 
-import java.io.*
 import java.net.*
-import java.security.MessageDigest
-import java.time.Instant
-import com.typesafe.config.ConfigFactory
+import java.time.LocalDateTime
+import java.util.Base64
 
 case class Spotify(private val client_id: String, private val client_secret: String, scope: String = "")(using Database) {
-  private implicit val tokenReads: Reads[Token] = (
-    (JsPath \ "access_token").read[String] and
-      (JsPath \ "token_type").read[String] and
-      (JsPath \ "scope").read[String] and
-      (JsPath \ "expires_in").read[Int] and
-      (JsPath \ "refresh_token").read[String] and
-      (JsPath \ "expires_on").readNullable[Long]
-    ) { (access_token: String, token_type: String, scope: String, expires_in: Int, refresh_token: String, expires_on: Option[Long]) =>
-    expires_on match {
-      case Some(timestamp) => Token(access_token, token_type, scope, expires_in, refresh_token, timestamp)
-      case None => Token(access_token, token_type, scope, expires_in, refresh_token)
-    }
-  }
-  private implicit val tokenWrites: Writes[Token] = Json.writes[Token]
-  private object Token {
-    def apply(access_token: String, token_type: String, scope: String, expires_in: Int, refresh_token: String): Token = {
-      Token(access_token, token_type, scope, expires_in, refresh_token, Instant.now.getEpochSecond + expires_in)
-    }
-  }
-  private case class Token(access_token: String, token_type: String, scope: String, expires_in: Int, refresh_token: String, val expires_on: Long) {
-    override def toString: String = access_token
-  }
+  private given Format[AuthResponse] = Json.format[AuthResponse]
+  private case class AuthResponse(access_token: String, token_type: String, scope: String, expires_in: Int, refresh_token: Option[String])
 
-  private def token: Option[Token] = {
-    sql"SELECT token FROM token".query(r => Json.parse(r.getString("token")).as[Token]).headOption map { token =>
-      if (Instant.now.getEpochSecond < token.expires_on) token
-      else {
-        val new_token = refresh_token(token)
-        sql"DELETE FROM token; INSERT INTO token VALUES (${Json.prettyPrint(Json.toJson(new_token))}::jsonb);".execute()
-        new_token
+  private def access_token: Option[String] = {
+    sql"SELECT access_token, refresh_token, expires FROM token"
+      .query(r => (r.getString("access_token"), r.getString("refresh_token"), r.getTimestamp("expires").toLocalDateTime))
+      .headOption.map { case (access_token, refresh_token, expires) =>
+        if (LocalDateTime.now().isBefore(expires)) access_token
+        else {
+          val response = refresh(refresh_token)
+          sql"""
+            DELETE FROM token;
+            INSERT INTO token VALUES (
+              ${response.access_token},
+              ${response.refresh_token.getOrElse(refresh_token)},
+              ${LocalDateTime.now().plusSeconds(response.expires_in)}
+            );
+          """.execute()
+          response.access_token
+        }
       }
-    }
   }
 
-  private def refresh_token(token: Token): Token = {
-    try {
-      val post = requests.post(
-        "https://accounts.spotify.com/api/token",
-        data = Map(
-          "grant_type" -> "refresh_token",
-          "refresh_token" -> token.refresh_token,
-          "client_id" -> client_id
-        )
+  private def refresh(refresh_token: String): AuthResponse = {
+    val post = requests.post(
+      "https://accounts.spotify.com/api/token",
+      data = Map(
+        "grant_type" -> "refresh_token",
+        "refresh_token" -> refresh_token,
+      ),
+      headers = Map(
+        "Authorization" -> s"Basic ${Base64.getEncoder.encodeToString(s"$client_id:$client_secret".getBytes)}"
       )
-      Json.parse(post.text()).as[Token]
-    } catch {
-      case e: requests.RequestFailedException if e.response.statusCode == 400 =>
-        println("Error refreshing token")
-        throw e
-    }
+    )
+    Json.parse(post.text()).as[AuthResponse]
   }
 
   val redirect: String = s"https://accounts.spotify.com/authorize?${Map(
@@ -80,12 +62,19 @@ case class Spotify(private val client_id: String, private val client_secret: Str
         "redirect_uri" -> "https://music.ivoah.net/callback",
       )
     )
-    val new_token = Json.parse(post.text()).as[Token]
-    sql"DELETE FROM token; INSERT INTO token VALUES (${Json.prettyPrint(Json.toJson(new_token))}::jsonb)".execute()
+    val response = Json.parse(post.text()).as[AuthResponse]
+    sql"""
+      DELETE FROM token;
+      INSERT INTO token VALUES (
+        ${response.access_token},
+        ${response.refresh_token.get},
+        ${LocalDateTime.now().plusSeconds(response.expires_in)}
+      );
+    """.execute()
   }
 
-  def nowPlaying(): Option[String] = token.map(token =>
-    val headers = Map("Authorization" -> s"Bearer ${token.access_token}")
+  def nowPlaying(): Option[String] = access_token.map(access_token =>
+    val headers = Map("Authorization" -> s"Bearer ${access_token}")
     val req = requests.get("https://api.spotify.com/v1/me/player", headers = headers)
     req.text()
   )

@@ -2,9 +2,9 @@ package net.ivoah.music
 
 import scala.util.Using
 import java.sql.*
-import java.time.LocalDate
+import java.time.{LocalDate, LocalDateTime}
 
-type QueryParam = Int | Double | String | Boolean | LocalDate
+type QueryParam = Int | Double | String | Boolean | LocalDate | LocalDateTime
 
 case class Database(url: String) {
   var db: Connection = DriverManager.getConnection(url)
@@ -32,11 +32,12 @@ case class Query(parts: Seq[String], params: Seq[QueryParam | RawQuery]) {
     )
 
     for ((param, i) <- params.collect { case p: QueryParam => p }.zipWithIndex) param match {
-      case int: Int        => stmt.setInt(i + 1, int)
-      case dbl: Double     => stmt.setDouble(i + 1, dbl)
-      case str: String     => stmt.setString(i + 1, str)
-      case bool: Boolean   => stmt.setBoolean(i + 1, bool)
-      case date: LocalDate => stmt.setString(i + 1, date.toString)
+      case int: Int          => stmt.setInt(i + 1, int)
+      case dbl: Double       => stmt.setDouble(i + 1, dbl)
+      case str: String       => stmt.setString(i + 1, str)
+      case bool: Boolean     => stmt.setBoolean(i + 1, bool)
+      case date: LocalDate   => stmt.setDate(i + 1, Date.valueOf(date))
+      case dt: LocalDateTime => stmt.setTimestamp(i + 1, Timestamp.valueOf(dt))
     }
 
     stmt

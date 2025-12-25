@@ -3,6 +3,7 @@ package net.ivoah.music
 import org.rogach.scallop.*
 import net.ivoah.vial.*
 import java.util.{Timer, TimerTask}
+import scala.util.Try
 import com.typesafe.config.ConfigFactory
 
 @main
@@ -22,17 +23,15 @@ def main(rawArgs: String*): Unit = {
   val spotify = Spotify(conf.getString("client_id"), conf.getString("client_secret"), "user-read-playback-state")
 
   Timer().scheduleAtFixedRate(new TimerTask {
-    def run() = spotify.nowPlaying() match {
+    def run() = Try(spotify.nowPlaying()).toOption.flatten match {
       case Some(data) => if (data.nonEmpty) sql"INSERT INTO history VALUES (NOW(), $data::jsonb)".update()
       case None =>
-        val bot_token = conf.getString("bot_token")
-        val chat_id = conf.getString("chat_id")
-        requests.post(s"https://api.telegram.org/bot$bot_token/sendMessage", data = Map(
-          "chat_id" -> chat_id,
+        println("Could not get spotify activity")
+        requests.post(s"https://api.telegram.org/bot${conf.getString("bot_token")}/sendMessage", data = Map(
+          "chat_id" -> conf.getString("chat_id"),
           "parse_mode" -> "MarkdownV2",
           "text" -> "music\\.ivoah\\.net: Could not get spotify activity\\! Try [logging in](https://music.ivoah.net/login)"
         ))
-        println("Could not get spotify activity")
     }
   }, 0, 60*1000)
 
