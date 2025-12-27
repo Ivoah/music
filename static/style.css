@@ -55,14 +55,6 @@ a {
     transform: translateY(50%);
 }
 
-.flexbox {
-    display: flex;
-}
-
-.scrollbox {
-    overflow-x: scroll;
-}
-
-svg#labels {
-    flex-shrink: 0;
+svg {
+    font-size: 10px;
 }

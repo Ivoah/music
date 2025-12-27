@@ -5,16 +5,15 @@ import scalatags.Text.tags2.title
 import scalatags.Text.svgTags.svg
 
 object Templates {
-  def root(song: Option[Song]) = doctype("html")(html(
+  def root(song: Option[Song], history: Seq[Session]) = doctype("html")(html(
     head(
       title(s"Noah is listening to ${song.map(_.title).getOrElse("nothing")}"),
 
       link(rel:="stylesheet", href:="/static/style.css"),
       link(rel:="shortcut icon", `type`:="image/png", href:="/static/favicon.png"),
+      meta(httpEquiv:="refresh", content:=60),
 
-      script(src:="https://d3js.org/d3.v5.min.js"),
       script(src:="https://code.jquery.com/jquery-3.6.0.min.js", crossorigin:="anonymous"),
-      script(src:="/static/music.js")
     ),
     body(
       song.map(song => frag(
@@ -24,17 +23,13 @@ object Templates {
       div(cls:="center textbox",
         "Noah is listening to ",
         song match {
-          case Some(song) => b(a(href:=song.link, attr("onmouseenter"):="showArtwork()", attr("onmouseleave"):="hideArtwork()", song.title))
+          case Some(song) => b(a(href:=song.link, attr("onmouseenter"):="$('.artwork').toggleClass('hidden', false)", attr("onmouseleave"):="$('.artwork').toggleClass('hidden', true)", song.title))
           case None => "nothing"
         },
         " right now"
       ),
-      div(cls:="bottom",
-        div(cls:="flexbox",
-          svg(id:="labels"),
-          div(cls:="scrollbox", svg(id:="chart"))
-        )
-      )
+      div(cls:="bottom", Charts.musicChart(history)),
+      script(raw("document.querySelectorAll('div[style=\"overflow-x: scroll;\"]').forEach(e => e.scrollLeft = e.scrollWidth)"))
     )
   )).render
 }

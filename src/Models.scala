@@ -4,7 +4,7 @@ import java.time.{LocalDate, LocalDateTime}
 import java.time.temporal.ChronoUnit
 
 extension (s: String) {
-  def escape: String = s.replaceAllLiterally("\"", "\\\"")
+  def escape: String = s.replace("\"", "\\\"")
   def quote: String = s"\"$s\""
 }
 
@@ -15,6 +15,9 @@ case class Snapshot(time: LocalDateTime, song: String, progress: Int)
 case class Listen(song: String, start: LocalDateTime, end: LocalDateTime, progress: Int)
 
 case class Session(date: LocalDate, start: LocalDateTime, end: LocalDateTime, songs: Seq[Snapshot]) {
+  lazy val startMinute: Int = ChronoUnit.MINUTES.between(date.atStartOfDay(), start).toInt
+  lazy val endMinute: Int = ChronoUnit.MINUTES.between(date.atStartOfDay(), end).toInt
+  
   def toJson: String = {
     val startOfDay = date.atStartOfDay()
     val spanJson = s"[${ChronoUnit.MINUTES.between(startOfDay, start)}, ${ChronoUnit.MINUTES.between(startOfDay, end)}]"

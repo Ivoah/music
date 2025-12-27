@@ -5,6 +5,14 @@ import java.nio.file.Paths
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
+def timeit[T](name: String)(fn: => T): T = {
+  val t0 = System.currentTimeMillis()
+  val ret = fn
+  val t1 = System.currentTimeMillis()
+  println(s"$name took ${(t1 - t0)/1000.0} seconds")
+  ret
+}
+
 class Endpoints(spotify: Spotify)(using Database) {
   def router: Router = Router {
     case ("GET" , "/", _) =>
@@ -20,9 +28,8 @@ class Endpoints(spotify: Spotify)(using Database) {
           LIMIT 1
         ) t WHERE active
       """.query(r => Song(r.getString("title"), r.getString("link"), r.getString("artwork"))).headOption
-      Response(Templates.root(song))
-    case ("GET", "/history.json", _) =>
-      val rows = sql"""
+
+      val history = sql"""
         SELECT
           time,
           data #>> '{"item", "name"}' song,
@@ -30,23 +37,23 @@ class Endpoints(spotify: Spotify)(using Database) {
         FROM history
         WHERE data['is_playing']::boolean and jsonb_typeof(data->'item') != 'null'
         ORDER BY time ASC
-      """.query(r => Snapshot(r.getTimestamp("time").toLocalDateTime(), r.getString("song"), r.getInt("progress")))
+      """
+        .query(r => Snapshot(r.getTimestamp("time").toLocalDateTime, r.getString("song"), r.getInt("progress")))
+        .foldLeft(Seq[Session]()) { case (sessions, s) =>
+          val startOfDay = s.time.toLocalDate().atStartOfDay()
+          val newSession = Session(s.time.toLocalDate(), s.time, s.time, Seq(s))
+          val lastSession = sessions.lastOption.getOrElse(newSession)
 
-      val sessions = rows.foldLeft(Seq[Session]()) { case (sessions, s) =>
-        val startOfDay = s.time.toLocalDate().atStartOfDay()
-        val newSession = Session(s.time.toLocalDate(), s.time, s.time, Seq(s))
-        val lastSession = sessions.lastOption.getOrElse(newSession)
-
-        if (ChronoUnit.MINUTES.between(lastSession.end, s.time) > 5) {
-          sessions :+ newSession
-        } else {
-          val newSong = if (s.song != lastSession.songs.last.song || s.progress < lastSession.songs.last.progress) Some(s)
-                        else None
-          sessions.dropRight(1) :+ Session(lastSession.date, lastSession.start, s.time, lastSession.songs ++ newSong)
+          if (ChronoUnit.MINUTES.between(lastSession.end, s.time) > 5) {
+            sessions :+ newSession
+          } else {
+            val newSong = if (s.song != lastSession.songs.last.song || s.progress < lastSession.songs.last.progress) Some(s)
+            else None
+            sessions.dropRight(1) :+ Session(lastSession.date, lastSession.start, s.time, lastSession.songs ++ newSong)
+          }
         }
-      }
-      
-      Response(sessions.map(_.toJson).mkString("[\n    ", ",\n    ", "\n]"), headers = Map("Content-Type" -> Seq("application/json")))
+
+      Response(Templates.root(song, history))
     case ("GET", "/login", _) => Response.Redirect(spotify.redirect)
     case ("GET", "/callback", request) =>
       spotify.save_token(request.params("code"))
