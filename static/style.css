@@ -57,4 +57,12 @@ a {
 
 svg {
     font-size: 10px;
+
+    line {
+        transition: stroke-width 250ms;
+    }
+
+    g[stroke-linecap="round"] line:hover {
+        stroke-width: 10px;
+    }
 }

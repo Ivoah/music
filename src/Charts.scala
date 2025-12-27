@@ -53,7 +53,11 @@ object Charts {
             text(stroke:="none", y:=15, dateFormat.format(d))
           )),
           g(stroke:="lightblue", strokeWidth:="7", strokeLinecap:="round",
-            for (s <- history) yield line(x1:=xScale(s.date), y1:=yScale(s.startMinute), x2:=xScale(s.date), y2:=yScale(s.endMinute))
+            for (s <- history) yield {
+              line(x1:=xScale(s.date), y1:=yScale(s.startMinute), x2:=xScale(s.date), y2:=yScale(s.endMinute), onclick:="alert(this.children[0].textContent)",
+                scalatags.Text.svgTags.tag("title")(s.hoverText)
+              )
+            }
           )
         )
       )
